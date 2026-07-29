@@ -18,8 +18,9 @@ sarb_theme <- theme_minimal(base_family = "Georgia") +
 
     # grid
     panel.grid.major.y = element_line(color = "#E2E0DA", linewidth = 0.6),
-    panel.grid.minor.y = element_line(color = "#E2E0DA", linewidth = 0.4),
+    #panel.grid.minor.y = element_line(color = "#E2E0DA", linewidth = 0.5),
     panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
     # axis
     axis.line.x        = element_line(color = "#BFBDB5", linewidth = 0.5),
     axis.ticks.x       = element_line(color = "#BFBDB5", linewidth = 0.4),
@@ -64,9 +65,9 @@ sarb_theme <- theme_minimal(base_family = "Georgia") +
 df1 <- tibble(date_col = as.Date(character()))
 
 
-series <- list(codes = c("CPS00000", "CPS00014", "CPS01000",  "CPS00007"), 
-                cols = c("headline", "core", "foodnab", "services"),
-                names = c("Headline", "Core", "Services"))
+series <- list(codes = c("CPS00000", "CPS00014", "CPS01000",  "CPS00007", "CPS00006"), 
+                cols = c("headline", "core", "foodnab", "services", "goods"),
+                names = c("Headline", "Core", "Services", "Goods"))
 
 for (i in 1:length(series$codes)){
 
@@ -100,15 +101,27 @@ df1_plot <- df1 %>%
 
 plot1 <- ggplot() +
     geom_line(data = df1_plot %>% filter(!(name %in% c("target1", "target2", "fuel_yoy"))), 
-                aes(x = date_col, y = value, colour = fct_reorder2(name, date_col, value, .desc = TRUE)), linewidth = 1) +
+                aes(x = date_col, y = value, colour = fct_reorder2(name, date_col, value, .desc = TRUE)),
+                 linewidth = 1) +
+    geom_point(data = df1_plot %>% filter(!(name %in% c("target1", "target2", "fuel_yoy"))), 
+                aes(x = date_col, y = value, colour = fct_reorder2(name, date_col, value, .desc = TRUE)), 
+                stat = "identity", 
+                show.legend = FALSE) +
+    geom_text(data = df1_plot %>% filter(!(name %in% c("target1", "target2", "fuel_yoy"))) %>% group_by(name) %>% filter(date_col == as.Date("2026-06-01")) %>% ungroup(), 
+                aes(x = date_col, y = value, colour = fct_reorder2(name, date_col, value, .desc = TRUE), label = round(value, 2)), 
+                stat = "identity", 
+                show.legend = FALSE,
+                position = "nudge", vjust = 0.3, hjust = -0.18) +          
     scale_colour_manual(values = c("headline_yoy" = "#1B2A4A", 
                                     "core_yoy" = "#B8860B",
                                     "foodnab_yoy"  = "#8C2D2D",
-                                    "services_yoy"     = "#3D6B72"), 
+                                    "services_yoy"     = "#3D6B72",
+                                    "goods_yoy" = "#8A8580"), 
                         labels = c("headline_yoy" = "Headline CPI", 
                                     "core_yoy" = "Core CPI", 
                                     "foodnab_yoy" = "Food & Non-\nAlcoholic Beverages",
-                                    "services_yoy" = "Services")) + 
+                                    "services_yoy" = "Services",
+                                    "goods_yoy" = "Goods")) + 
     geom_line(data = df1_plot %>% filter(name == "target1"), aes(x = date_col, y = value),
           linetype = "dashed", 
           colour = "black", 
@@ -117,16 +130,16 @@ plot1 <- ggplot() +
           linetype = "dashed", 
           colour = "black", 
           linewidth = 0.8, na.rm = ) +
-    scale_y_continuous(limits = c(-1, 6),
-                        breaks = seq(-1, 6, by = 2), 
-                        minor_breaks = seq(-1, 6, by = 1), 
+    scale_y_continuous(limits = c(0, 6),
+                        breaks = seq(0, 6, by = 2), 
+                        #minor_breaks = seq(0, 6, by = 1), 
                         expand = c(0, 0)) +
     scale_x_date(date_labels = "%m-%Y", 
                 date_breaks = "1 months",
-                limits = c(as.Date("2026-01-01"), max(plot1_df$date_col)), expand = c(0, 0)) +
+                limits = c(as.Date("2026-01-01"), max(plot1_df$date_col)), expand = expansion(mult = c(0.01, 0.055))) +
   annotate("text", 
-             x = as.Date("2026-01-01"), y = 2.7, 
-             label = "MPC target", 
+             x = as.Date("2026-01-01"), y = 2.8, 
+             label = "MPC target (3%)", 
              colour = "grey40", family = "Georgia", size = 3.5, 
              fontface = "italic", hjust = 0) +
   geom_hline(yintercept = 0, 
@@ -207,19 +220,28 @@ df2_plot <- df2_plot %>%
     filter(date_col > as.Date("2025-12-01")) %>%
     mutate(month_label = format(date_col, "%m-%Y"))
 
-plot2 <- ggplot() +
-    geom_col(data = df2_plot, 
-                aes(x = month_label, y = value, fill = fct_reorder2(name, date_col, value, .desc = TRUE)),
-                position = position_dodge2(width = 20, preserve = "single")) +
+plot2 <- ggplot(data = df2_plot) +
+    geom_col(aes(x = month_label, y = value, fill = fct_reorder2(name, date_col, value, .desc = TRUE)),
+    position = position_dodge2(width = 20, preserve = "single")) +
+     geom_text(aes(x = month_label, y = value, colour = fct_reorder2(name, date_col, value, .desc = TRUE),label = round(value, 2), vjust = ifelse(value >= 0 , -0.5, 1)), 
+                 size = 3,
+                 show.legend = FALSE,
+                position = position_dodge(width = 0.9)) +
     scale_fill_manual(values = c("fuel_mom" = "#1B2A4A", 
                                     "petrol_mom" = "#B8860B",
                                     "diesel_mom"  = "#8C2D2D"), 
                         labels = c("fuel_mom" = "Fuel and Lubricants", 
                                     "petrol_mom" = "Petrol", 
                                     "diesel_mom" = "Diesel")) + 
+    scale_colour_manual(values = c("fuel_mom" = "#1B2A4A", 
+                                    "petrol_mom" = "#B8860B",
+                                    "diesel_mom"  = "#8C2D2D"), 
+                        labels = c("fuel_mom" = "Fuel and Lubricants", 
+                                    "petrol_mom" = "Petrol", 
+                                    "diesel_mom" = "Diesel")) +
     scale_y_continuous(breaks = seq(-10, 40, by = 10), 
                          #minor_breaks = seq(-8, 40, by = ), 
-                         expand = c(0.05, 0.05)) +
+                         expand = expansion(mult = c(0.01, 0.055))) +
     # scale_x_(date_labels = "%m-%Y", 
     #             date_breaks = "1 months",
     #             limits = c(as.Date("2026-01-01"), max(plot1_df$date_col)), expand = c(0, 0)) +
@@ -315,3 +337,352 @@ cpi_contribution <- cpi_contribution %>%
         arrange(desc(`Basket Weight`))
 
 writexl::write_xlsx(cpi_contribution, here::here("categories.xlsx"))
+
+
+##########################################################################################################################################################################################################################################################################
+
+################################################################### FIGURE 4: EXPECTATIONS PLOT ##############################################################################################################################################################
+
+##########################################################################################################################################################################################################################################################################
+
+
+expectations <- tibble(date_col = as.Date(character()))
+
+for (sheet in c("Professionals", "Analysts", "Trade_unions", "Businesses")){
+    lab <- tolower(stringr::str_sub(sheet, 1, 3))
+
+    t0 <- paste0(lab, "_t0")
+    t1 <- paste0(lab, "_t1")
+    t2 <- paste0(lab, "_t2")
+
+    temp_df <- readxl::read_excel(here::here("inflexp.xlsx"), sheet = sheet) %>%
+                dplyr::select(Date, `CPI t0`, `CPI t1`, `CPI t2`) %>%
+                dplyr::mutate(date_col = lubridate::yq(Date)) %>%
+                dplyr::select(-Date) %>%
+                dplyr::filter(date_col > as.Date("2025-09-01"),
+                                 date_col < as.Date("2026-07-01")) %>%
+                dplyr::rename(!!t0 := "CPI t0" , !!t1 := "CPI t1" , !!t2 := "CPI t2")
+
+    expectations <- full_join(expectations, temp_df, by = "date_col")
+
+}
+
+expectations <- expectations %>%
+            pivot_longer(-date_col, names_to = "name") 
+
+expectations <- expectations %>%
+                dplyr::mutate(group = stringr::str_sub(name, 1, 3),
+                                    t = stringr::str_sub(name, 5, 6)) 
+
+expectations <- expectations %>%
+                dplyr::mutate(period = paste0(lubridate::year(as.Date(date_col)),"-" , lubridate::quarter(as.Date(date_col))),
+                            xval = case_when(date_col < as.Date("2026-01-01") & t == "t0" ~ "2025",
+                                            date_col < as.Date("2026-01-01") & t == "t1" ~ "2026",
+                                            date_col < as.Date("2026-01-01") & t == "t2" ~ "2027",
+                                            date_col >= as.Date("2026-01-01") & t == "t0" ~ "2026",
+                                            date_col >= as.Date("2026-01-01") & t == "t1" ~ "2027",
+                                            date_col >= as.Date("2026-01-01") & t == "t2" ~ "2028", 
+                                            TRUE ~ NA_character_))
+
+df3_plot <- expectations %>%
+        dplyr::select(-date_col) %>%
+        dplyr::mutate(xval = as.numeric(xval))
+
+
+plot3 <- ggplot(data = df3_plot %>% dplyr::filter(period != "2026-3", xval != 2025)) +
+    geom_line(aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE), linetype = period),
+                 linewidth = 1) +
+    geom_point(aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE)), 
+                stat = "identity", 
+                show.legend = FALSE) +
+    geom_text(aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE), label = round(value, 2),
+                vjust = ifelse((xval == 2027 & group == "pro" & period == "2025-4") | (xval == 2026 & group == "bus" & period == "2025-4"), 1, -0.4), 
+                hjust = ifelse((xval == 2026) | (xval == 2027 & group == "bus" & period == "2026-1") , 1.2, -0.18)
+                ), 
+                stat = "identity", 
+                show.legend = FALSE) +          
+    scale_colour_manual(values = c("pro" = "#1B2A4A", 
+                                    "ana" = "#B8860B",
+                                    "tra"  = "#8C2D2D",
+                                    "bus"     = "#3D6B72"),
+                        labels = c("pro" = "Professionals",
+                                    "ana" = "Analysts",
+                                    "tra"  = "Trade Unions",
+                                    "bus"     = "Businesses")) + 
+    scale_linetype_manual(values = c("2025-4" = "dotted",
+                                    "2026-1" = "dashed",
+                                    "2026-2" = "solid"),
+                            labels = c("2025-4" = "2025Q4",
+                                    "2026-1" = "2026Q1",
+                                    "2026-2" = "2026Q2")) +
+    scale_y_continuous(limits = c(3, 4.75),
+                        breaks = seq(3, 4.75, by = 0.35), 
+                        #minor_breaks = seq(0, 6, by = 1), 
+                        expand = c(0, 0)) +
+    scale_x_continuous(limits = c(2026, 2028), 
+                        breaks = seq(2026, 2028, by = 1),
+                        expand = expansion(mult = c(0.055, 0.055))) +
+  annotate("text", 
+             x = 2026, y = 3.05, 
+             label = "MPC target (3%)", 
+             colour = "grey40", family = "Georgia", size = 3.5, 
+             fontface = "italic", hjust = 0) +
+  geom_hline(yintercept = 3, 
+            colour = "black",
+            linewidth = 0.4) +
+  labs(title = "Inflation Expecatations by Survey Groups",
+  caption = "Source: BER", 
+  y = "Expected CPI (%)", 
+  x = "") +
+  sarb_theme 
+
+ggsave(file = here::here("forecast_paths.png"), plot = plot3, width = 10, height = 6, dpi = 300)
+
+
+
+##########################################################################################################################################################################################################################################################################
+
+################################################################### FIGURE 4: CURRENCY CHANGES ##############################################################################################################################################################
+
+##########################################################################################################################################################################################################################################################################
+
+currency_df <- tibble(date_col = as.Date(character()))
+
+
+for (currency in c("dollar", "yen", "yuan", "euro", "gbp")){
+    temp_file <- paste0(currency, ".csv")
+    prefixed <- paste0(currency, "_chng")
+
+    if (currency %in% c("dollar", "euro", "gbp")){
+        temp_df <- readr::read_csv(here::here(temp_file), skip = 3) %>%
+                dplyr::mutate(date_col = as.Date(Date), 
+                                Value = as.numeric(1 / Value)) %>%
+                arrange(date_col) %>%
+                dplyr::mutate(!!prefixed := ((Value - lag(Value, n = 1)) / lag(Value, n = 1) * 100)) %>%
+                dplyr::filter(date_col >= as.Date("2026-07-20")) %>%
+                dplyr::select(-c("Date", "Value"))
+    } else {
+        temp_df <- readr::read_csv(here::here(temp_file), skip = 3) %>%
+                dplyr::mutate(date_col = as.Date(Date), 
+                                Value = as.numeric(Value)) %>%
+                arrange(date_col) %>%
+                dplyr::mutate(!!prefixed := ((Value - lag(Value, n = 1)) / lag(Value, n = 1) * 100)) %>%
+                dplyr::filter(date_col >= as.Date("2026-07-20")) %>%
+                dplyr::select(-c("Date", "Value")) 
+    }
+
+currency_df <- full_join(currency_df, temp_df, by = "date_col")
+                
+}
+
+
+currency_tbl <- currency_df %>%
+        dplyr::filter(date_col >= as.Date("2026-07-20"), date_col <= as.Date("2026-07-24")) %>%
+        pivot_longer(-date_col, names_to = "currency") %>%
+        dplyr::mutate(Currency = case_when(currency == "dollar_chng" ~ "US Dollar",
+                                            currency == "yen_chng" ~ "Japanese Yen",
+                                            currency == "yuan_chng" ~ "Chinese Yuan",
+                                            currency == "gbp_chng" ~ "GB Pound",
+                                            currency == "euro_chng" ~ "Euro"),
+                        Day = case_when(date_col == as.Date("2026-07-20") ~ "Jul 20",
+                                        date_col == as.Date("2026-07-21") ~ "Jul 21",
+                                        date_col == as.Date("2026-07-22") ~ "Jul 22",
+                                        date_col == as.Date("2026-07-23") ~ "Jul 23",
+                                        date_col == as.Date("2026-07-24") ~ "Jul 24")) %>%
+        pivot_wider(id_cols = Currency, names_from = "Day", values_from = value) 
+
+
+writexl::write_xlsx(currency_tbl, here::here("currencies.xlsx"))
+
+
+
+##########################################################################################################################################################################################################################################################################
+
+################################################################### FIGURE 7: FOOD PLOT ##############################################################################################################################################################
+
+##########################################################################################################################################################################################################################################################################
+
+
+food_items <- tibble::tribble(
+  ~label, ~code,
+  "Rice", "01111001",
+  "Loaf of white bread", "01112001",
+  "Loaf of brown bread", "01112002",
+  "Sweet biscuits", "01112003",
+  "Savoury biscuits", "01112004",
+  "Bread rolls", "01112005",
+  "Rusks", "01112301",
+  "Spaghetti", "01113001",
+  "Macaroni", "01113002",
+  "Pasta (excl spaghetti, macaroni)", "01113003",
+  "Instant noodles (e.g. 2 minute noodles)", "01113004",
+  "Cake or tart", "01114001",
+  "Frozen pastry products (pizza or pies)", "01114002",
+  "Cake flour", "01116001",
+  "Bread flour", "01116002",
+  "Maize meal", "01116003",
+  "Cereals", "01116005",
+  "Super maize", "01116008",
+  "Special maize", "01116009",
+  "Hot cereals (porridge) incl instant porridge", "01116010",
+  "Ready-mix flour", "01116011",
+  "Samp", "01116012",
+  "Beef mince", "01121005",
+  "Beef offal", "01121010",
+  "Beef steak", "01121011",
+  "Stewing beef/brisket/chuck", "01121012",
+  "Pork - combined", "01122099",
+  "Lamb/mutton - combined", "01123099",
+  "Whole chicken - fresh", "01124001",
+  "Chicken portions - fresh", "01124002",
+  "IQF chicken portions", "01124005",
+  "Chicken portions frozen - non IQF", "01124006",
+  "Chicken giblets (neck, gizzards, hearts, etc)", "01124007",
+  "Polony", "01125004",
+  "Ham", "01125005",
+  "Biltong", "01125006",
+  "Bacon", "01125007",
+  "Sausage", "01125009",
+  "Beef extract", "01126002",
+  "Corned beef", "01126005",
+  "Hake - frozen", "01131001",
+  "Fish fingers - frozen", "01134001",
+  "Tuna - tinned", "01134002",
+  "Fish (excl tuna) - tinned", "01134003",
+  "Full cream milk - fresh", "01141001",
+  "Full cream milk - long life", "01141002",
+  "Low fat milk - fresh", "01142001",
+  "Low fat milk - long life", "01142002",
+  "Powdered milk", "01143001",
+  "Whiteners", "01143002",
+  "Condensed milk", "01143003",
+  "Plain yogurt", "01144001",
+  "Flavoured yogurt", "01144002",
+  "Cheddar cheese", "01145001",
+  "Gouda cheese", "01145002",
+  "Cheese spread", "01145003",
+  "Feta cheese", "01145004",
+  "Cream - fresh", "01146001",
+  "Sour milk", "01146002",
+  "Custard - prepared", "01146003",
+  "Maize based food drink (e.g. mageu)", "01146004",
+  "Flavoured milk", "01146005",
+  "Eggs", "01147001",
+  "Margarine spread (in a tub)", "01152001",
+  "Brick margarine", "01152002",
+  "Peanut butter", "01152003",
+  "Sunflower oil (incl canola oil)", "01154001",
+  "Bananas", "01162001",
+  "Apples", "01163001",
+  "Seasonal fruit", "01167099",
+  "Peanuts", "01168004",
+  "Lettuce", "01171001",
+  "Spinach/morogo", "01171002",
+  "Cabbage", "01172001",
+  "Cauliflower", "01172002",
+  "Broccoli", "01172003",
+  "Tomatoes", "01173001",
+  "Pumpkin", "01173002",
+  "Green/red/yellow pepper", "01173003",
+  "Vegetables - frozen", "01173004",
+  "Cucumber", "01173006",
+  "Onions", "01174001",
+  "Carrots", "01174002",
+  "Beetroot", "01174003",
+  "Mushrooms", "01174005",
+  "Beans - dried", "01175002",
+  "Baked beans - tinned", "01176002",
+  "Prepared salads", "01176005",
+  "Atchar", "01176006",
+  "Mixed vegetables - tinned", "01176007",
+  "Potatoes", "01177001",
+  "Sweet potatoes", "01178001",
+  "Potato chips - frozen", "01178002",
+  "Potato crisps", "01178003",
+  "Corn chips", "01178004",
+  "White sugar", "01181001",
+  "Brown sugar", "01181002",
+  "Jam", "01182001",
+  "Chocolate slab", "01183001",
+  "Chocolate bar", "01183002",
+  "Sweets", "01184001",
+  "Chewing gum", "01184002",
+  "Ice cream", "01185001",
+  "Vinegar", "01191001",
+  "Chutney", "01191002",
+  "Tomato sauce", "01191004",
+  "Mayonnaise", "01191005",
+  "Salad dressing", "01191006",
+  "Salt", "01192001",
+  "Spices (excl salt and curry powder)", "01192002",
+  "Curry powder", "01192003",
+  "Baby food - cereal", "01193001",
+  "Baby food - milk formula", "01193003",
+  "Instant yeast", "01193004",
+  "Baking powder", "01193005",
+  "Soup powder", "01193006",
+  "Baby food - pureed bottled/pouched", "01193008",
+  "Instant coffee", "01211001",
+  "Ground coffee or coffee beans", "01211002",
+  "Cappucino sachets", "01211003",
+  "Ceylon/black tea", "01212001",
+  "Rooibos tea", "01212002",
+  "Drinking chocolate (e.g. milo, cocoa)", "01213001",
+  "Mineral water - sparkling or still", "01221001",
+  "Fizzy drinks - can", "01222001",
+  "Fizzy drinks - bottle", "01222002",
+  "Other soft drinks (e.g. energy drinks and iced tea)", "01222003",
+  "Fruit juice", "01223001",
+  "Fruit juice concentrates", "01223002",
+  "Dairy blends/mixtures", "01223003"
+)
+
+coicop_df <- readxl::read_excel(here("coicop.xlsx")) %>%
+    dplyr::select(c(`Old code`, matches("^M20"))) %>%
+    dplyr::rename(digit = `Old code`)
+
+food_list <- list()
+
+for (i in 1:length(food_items$code)){
+        code <- food_items$code[i]
+
+        temp_df <- coicop_df %>%
+            dplyr::filter(digit == code) %>%
+            dplyr::mutate(yoy = (M202606 - M202506) / M202506 * 100) %>%
+            dplyr::select(digit, yoy)
+
+    food_list[[i]] <- temp_df
+}
+
+food_df <- dplyr::bind_rows(food_list)
+
+top5 <- food_df %>%
+        arrange(desc(yoy)) %>%
+        head(5)
+
+bottom5 <- food_df %>%
+        arrange(yoy) %>%
+        head(5)
+
+df4_plot <- dplyr::bind_rows(top5, bottom5) %>%
+        dplyr::rename("code" = "digit") %>%
+        left_join(food_items, by = "code")
+
+
+plot4 <- ggplot(data = df4_plot, aes(x = fct_reorder(label, yoy, .desc = FALSE), y = yoy, fill = (yoy > 0))) +
+        geom_col() +
+        scale_fill_manual(values = c("TRUE" = "#1B2A4A", "FALSE" = "#8C2D2D")) +
+        coord_flip() +
+        labs(title = "Top Food Price Changes",
+            caption = "Source: Statistics South Africa\nNote: Rates calculated as year-on-year changes.", 
+            y = "", 
+        x = "% Change (Y-o-Y)") +
+        sarb_theme +
+        theme(panel.grid = element_blank(),
+                legend.position = "none")
+
+ggsave(file = here::here("food_changes.png"), plot = plot4, width = 10, height = 6, dpi = 300)
+
+
+
+
