@@ -119,7 +119,7 @@ plot1 <- ggplot() +
                                     "goods_yoy" = "#8A8580"), 
                         labels = c("headline_yoy" = "Headline CPI", 
                                     "core_yoy" = "Core CPI", 
-                                    "foodnab_yoy" = "Food & Non-\nAlcoholic Beverages",
+                                    "foodnab_yoy" = "Food & Non-Alcoholic Beverages",
                                     "services_yoy" = "Services",
                                     "goods_yoy" = "Goods")) + 
     geom_line(data = df1_plot %>% filter(name == "target1"), aes(x = date_col, y = value),
@@ -145,11 +145,13 @@ plot1 <- ggplot() +
   geom_hline(yintercept = 0, 
             colour = "black",
             linewidth = 0.4) +
+    guides(colour = guide_legend(nrow = 1)) +
   labs(title = "Selected Consumer Price Series Changes, January - June 2026",
   caption = "Source: BER, Statistics South Africa\nNote: Rates calculated as year-on-year changes.", 
   y = "% Change (Y-o-Y)", 
   x = "") +
-  sarb_theme 
+  sarb_theme +
+  theme(legend.position = "bottom")
 
 ggsave(file = here::here("select_rates.png"), plot = plot1, width = 10, height = 6, dpi = 300)
 
@@ -242,6 +244,7 @@ plot2 <- ggplot(data = df2_plot) +
     scale_y_continuous(breaks = seq(-10, 40, by = 10), 
                          #minor_breaks = seq(-8, 40, by = ), 
                          expand = expansion(mult = c(0.01, 0.055))) +
+    guides(fill = guide_legend(nrow = 1)) +
     # scale_x_(date_labels = "%m-%Y", 
     #             date_breaks = "1 months",
     #             limits = c(as.Date("2026-01-01"), max(plot1_df$date_col)), expand = c(0, 0)) +
@@ -249,7 +252,9 @@ plot2 <- ggplot(data = df2_plot) +
   caption = "Source: BER, Statistics South Africa\nNote: Rates calculated as month-on-month changes.", 
   y = "% Change (M-o-M)", 
   x = "") +
-  sarb_theme 
+  sarb_theme +
+    theme(legend.position = "bottom")
+
 
 ggsave(file = here::here("fuel.png"), plot = plot2, width = 10, height = 6, dpi = 300)
 
@@ -370,7 +375,14 @@ for (sheet in c("Professionals", "Analysts", "Trade_unions", "Businesses")){
 expectations <- expectations %>%
             pivot_longer(-date_col, names_to = "name") 
 
-expectations <- expectations %>%
+
+sarb_qpm <- tibble(date_col = rep(seq(as.Date("2025-10-01"), 
+                                        as.Date("2026-04-01"), 
+                                        by = "3 months"), each = 3),
+                    name = rep(c("qpm_t0", "qpm_t1", "qpm_t2") , times = 3), 
+                    value = as.numeric(c("3.3", "3.5", "3.1", "3.7", "3.3", "3.0", "4.0", "3.8", "3.1")))
+
+expectations <- bind_rows(expectations, sarb_qpm) %>%
                 dplyr::mutate(group = stringr::str_sub(name, 1, 3),
                                     t = stringr::str_sub(name, 5, 6)) 
 
@@ -383,6 +395,8 @@ expectations <- expectations %>%
                                             date_col >= as.Date("2026-01-01") & t == "t1" ~ "2027",
                                             date_col >= as.Date("2026-01-01") & t == "t2" ~ "2028", 
                                             TRUE ~ NA_character_))
+                                            
+
 
 df3_plot <- expectations %>%
         dplyr::select(-date_col) %>%
@@ -395,20 +409,22 @@ plot3 <- ggplot(data = df3_plot %>% dplyr::filter(period != "2026-3", xval != 20
     geom_point(aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE)), 
                 stat = "identity", 
                 show.legend = FALSE) +
-    geom_text(aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE), label = round(value, 2),
-                vjust = ifelse((xval == 2027 & group == "pro" & period == "2025-4") | (xval == 2026 & group == "bus" & period == "2025-4"), 1, -0.4), 
-                hjust = ifelse((xval == 2026) | (xval == 2027 & group == "bus" & period == "2026-1") , 1.2, -0.18)
+    geom_text(data = df3_plot %>% dplyr::filter(period == "2026-2"), aes(x = xval, y = value, colour = fct_reorder2(group, xval, value, .desc = TRUE), label = round(value, 2),
+                vjust = ifelse((xval == 2027 & group == "ana" & period == "2026-2"), 1.9, -0.4), 
+                hjust = ifelse((xval == 2026) | (xval == 2027 & group == "bus" & period == "2026-1") , 1.25, -0.18)
                 ), 
                 stat = "identity", 
                 show.legend = FALSE) +          
     scale_colour_manual(values = c("pro" = "#1B2A4A", 
                                     "ana" = "#B8860B",
                                     "tra"  = "#8C2D2D",
-                                    "bus"     = "#3D6B72"),
+                                    "bus"     = "#3D6B72",
+                                    "qpm" = "#8A8580"),
                         labels = c("pro" = "Professionals",
                                     "ana" = "Analysts",
                                     "tra"  = "Trade Unions",
-                                    "bus"     = "Businesses")) + 
+                                    "bus"     = "Businesses",
+                                    "qpm" = "SARB QPM")) + 
     scale_linetype_manual(values = c("2025-4" = "dotted",
                                     "2026-1" = "dashed",
                                     "2026-2" = "solid"),
@@ -430,11 +446,13 @@ plot3 <- ggplot(data = df3_plot %>% dplyr::filter(period != "2026-3", xval != 20
   geom_hline(yintercept = 3, 
             colour = "black",
             linewidth = 0.4) +
+    guides(colour = guide_legend(nrow = 1), linetype = "none") +
   labs(title = "Inflation Expecatations by Survey Groups",
-  caption = "Source: BER", 
+  caption = "Source: BER, SARB\nNote: SARB QPM values obtained from MPC forecast reports for November 2025, March 2026 and July 2026.\n           Dotted lines represent 2025 Q4 forecasts, dashed 2026 Q1 and solid the most recent.", 
   y = "Expected CPI (%)", 
   x = "") +
-  sarb_theme 
+  sarb_theme +
+  theme(legend.position = "bottom")
 
 ggsave(file = here::here("forecast_paths.png"), plot = plot3, width = 10, height = 6, dpi = 300)
 
